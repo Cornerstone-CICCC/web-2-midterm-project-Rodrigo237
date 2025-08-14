@@ -217,6 +217,7 @@ function prevSlide() {
 }
 
 function startAutoSlide() {
+  clearInterval(slideInterval)
   slideInterval = setInterval(nextSlide, 5000);
 }
 
