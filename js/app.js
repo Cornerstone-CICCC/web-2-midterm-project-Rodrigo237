@@ -1,6 +1,12 @@
+document.addEventListener('DOMContentLoaded', async function() {
+  loadPopularMovies(); 
+})
+
 const apiKey = '6c65da1d5c9aa271fa8c84ae76187f96'; 
 
 let currentSearchType = 'movie'
+
+/*Search Movies or Series*/
 
 document.querySelector('.btn-search').addEventListener('click', () => {
   const searchInput = document.getElementById('searchInput').value.trim();
@@ -17,6 +23,8 @@ document.querySelector('.btn-search').addEventListener('click', () => {
   }
 });
 
+/*Set Active btn*/
+
 function setActiveMenu(type) {
   const links = document.querySelectorAll('.nav-menu li a');
   links.forEach(link => link.classList.remove('active'));
@@ -32,7 +40,7 @@ function setActiveMenu(type) {
 
 async function searchMovies(query) {
   const url = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(query)}`;
-
+  
   const response = await fetch(url);
   const data = await response.json();
 
@@ -42,11 +50,12 @@ async function searchMovies(query) {
   data.results.forEach(movie => {
     resultsDiv.appendChild(createMovieCard(movie));
   });
+  document.querySelector('.title-movies').textContent = '🎥 Results Movies';
+  document.getElementById('searchInput').value = '';
 }
 
 async function searchSeries(query) {
   const url = `https://api.themoviedb.org/3/search/tv?api_key=${apiKey}&query=${encodeURIComponent(query)}`;
-
   const response = await fetch(url);
   const data = await response.json();
 
@@ -56,9 +65,11 @@ async function searchSeries(query) {
   data.results.forEach(series => {
     resultsDiv.appendChild(createSeriesCard(series));
   });
+  document.querySelector('.title-movies').textContent = '📺 Results Series';
+  document.getElementById('searchInput').value = '';
 }
 
-
+/*Load Trendind Movies */
 async function loadPopularMovies() {
   const aboutSection = document.getElementById('aboutSection');
   if (aboutSection) aboutSection.style.display = 'none';
@@ -71,6 +82,7 @@ async function loadPopularMovies() {
 
   currentSearchType = 'movie';
   setActiveMenu('movie');
+  loadCarousel();
   const url = `https://api.themoviedb.org/3/movie/popular?api_key=${apiKey}&language=en-US&page=1`;
   const response = await fetch(url);
   const data = await response.json();
@@ -82,7 +94,7 @@ async function loadPopularMovies() {
   });
 
 }
-
+/*Load Trendind Series */
 async function loadPopularSeries() {
   const aboutSection = document.getElementById('aboutSection');
   if (aboutSection) aboutSection.style.display = 'none';
@@ -95,6 +107,7 @@ async function loadPopularSeries() {
 
   currentSearchType = 'tv';
   setActiveMenu('tv');
+  loadCarousel();
   const url = `https://api.themoviedb.org/3/tv/popular?api_key=${apiKey}&language=en-US&page=1`;
   const response = await fetch(url);
   const data = await response.json();
@@ -113,7 +126,7 @@ function getStars(rating) {
   return '★'.repeat(fullStars) + '☆'.repeat(5 - fullStars);
 }
 
-
+/*Load About us Section*/
 async function loadAbout() {
   currentSearchType = null;
   setActiveMenu('about');
@@ -185,12 +198,7 @@ function createSeriesCard(series) {
   return div;
 }
 
-
-
-loadPopularMovies();
-
-loadPopularSeries();
-loadAbout();
+/*Carousel Slides*/ 
 
 let currentSlide = 0;
 let slideInterval;
@@ -219,19 +227,26 @@ function stopAutoSlide() {
 document.getElementById('carousel').addEventListener('mouseenter', stopAutoSlide);
 document.getElementById('carousel').addEventListener('mouseleave', startAutoSlide);
 
+/*Carousel creation*/
 
+function createCarouselSlide(item) {
+  const isMovie = !!item.title;
+  const title = item.title || item.name;
+  const overview = item.overview || 'Description not available.';
+  const backdrop = item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : '';
+  const btnAction = isMovie
+    ? `viewDetails(${item.id})`
+    : `viewSeriesDetails(${item.id})`;
 
-function createCarouselSlide(movie, index) {
   const slide = document.createElement('div');
   slide.classList.add('carousel-slide');
   slide.innerHTML = `
-    <img src="https://image.tmdb.org/t/p/original${movie.backdrop_path}" alt="${movie.title}">
+    <img src="${backdrop}" alt="${title}">
     <div class="carousel-caption">
-      <h3>${movie.title}</h3>
-      <p>${movie.overview || 'Sin descripción disponible.'}</p>
-      <button onclick="viewDetails(${movie.id})">See more</button>
+      <h3>${title}</h3>
+      <p>${overview}</p>
+      <button onclick="${btnAction}">See more</button>
     </div>
-   
   `;
   return slide;
 }
@@ -255,23 +270,32 @@ function updateCarousel() {
   });
 }
 
-async function loadCarouselMovies() {
-  const url = `https://api.themoviedb.org/3/movie/popular?api_key=${apiKey}&language=en-US&page=1`;
+async function loadCarousel() {
+  let type = "";
+  if (currentSearchType === 'movie') {
+    type = 'movie';
+  }else if (currentSearchType === 'tv') {
+    type = 'tv';
+  }
+  if (!type) return; 
+  const url = `https://api.themoviedb.org/3/${type}/popular?api_key=${apiKey}&language=en-US&page=1`;
   const response = await fetch(url);
   const data = await response.json();
 
   const carousel = document.getElementById('carousel');
   const indicators = document.getElementById('indicators');
+  carousel.innerHTML = '';
+  indicators.innerHTML = '';
 
-  data.results.slice(0, 5).forEach((movie, index) => {
-    carousel.appendChild(createCarouselSlide(movie, index));
+  data.results.slice(0, 5).forEach((item, index) => {
+    carousel.appendChild(createCarouselSlide(item));
     indicators.appendChild(createIndicator(index));
   });
-
+  currentSlide = 0;
   updateCarousel();
   startAutoSlide();
 }
-loadCarouselMovies();
+
 
 
 window.onclick = function(event) {
@@ -353,7 +377,13 @@ function closeModal() {
 
 /*Switch to light-mode*/
 function toggleTheme() {
+  const logo = document.querySelector(".nav-logo");
   const isLight = document.body.classList.toggle('light-mode');
+  if(isLight){
+    logo.src = './assests/images/logo.svg';
+  }else{
+    logo.src = './assests/images/logo-dark-mode.svg'
+  }
   localStorage.setItem('theme', isLight ? 'light' : 'dark');
 }
 
@@ -364,5 +394,14 @@ window.onload = function() {
     document.getElementById('themeSwitch').checked = true;
   }
 };
+
+/*Hambuger Menu */
+
+document.getElementById('hamburger').addEventListener('click', () => {
+  const navContainer = document.querySelector('.nav-container');
+  const theme_toggle = document.querySelector(".theme-toggle");
+  navContainer.classList.toggle('show');
+  theme_toggle.classList.toggle('show');
+});
 
 
